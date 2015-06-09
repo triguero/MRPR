@@ -1,0 +1,152 @@
+10
+
+dir
+24
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl/src/keel/Algorithms
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl
+
+
+
+2011-10-20T14:09:35.751269Z
+24
+isaac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6c7e97d8-20ad-4c8d-a3e2-5ac7daabb015
+
+Instance_Generation
+dir
+
+PSO_Learning
+dir
+
+LQD
+dir
+
+Symbolic_Regression
+dir
+
+MIL
+dir
+
+Neural_Networks
+dir
+
+Complexity_Metrics
+dir
+
+Semi_Supervised_Learning
+dir
+
+Preprocess
+dir
+
+Rule_Learning
+dir
+
+RE_SL_Methods
+dir
+
+Subgroup_Discovery
+dir
+
+Fuzzy_Rule_Learning
+dir
+
+Lazy_Learning
+dir
+
+Coevolution
+dir
+
+Statistical_Tests
+dir
+
+RE_SL_Postprocess
+dir
+
+Discretizers
+dir
+
+UnsupervisedLearning
+dir
+
+backupSemi_Supervised_Learning.zip
+file
+
+
+
+
+2011-07-29T11:49:20.201184Z
+7e3bd1fb47f661bcce3442efc5ee00ef
+2011-07-28T10:38:35.013981Z
+1
+isaac
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+168614
+
+Genetic_Rule_Learning
+dir
+
+Associative_Classification
+dir
+
+Statistical_Models
+dir
+
+ImbalancedClassification
+dir
+
+Hyperrectangles
+dir
+
+Decision_Trees
+dir
+
+SVM
+dir
+
+Shared
+dir
+
+Clustering_Algorithms
+dir
+
+Instance_Selection
+dir
+
+Statistical_Classifiers
+dir
+

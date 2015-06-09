@@ -1,0 +1,928 @@
+
+/*
+	SelfTrainingFiltered.java
+	Isaac Triguero Velazquez.
+	
+	Created by Isaac Triguero Velazquez  11-1-2011
+	Copyright (c) 2008 __MyCompanyName__. All rights reserved.
+
+*/
+
+package org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.SelfTrainingFiltered;
+
+
+
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.C45;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.HandlerNB;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.HandlerSMO;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.NormalDistribution;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.ParametersSMO;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.PrototypeSet;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.PrototypeGenerator;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.Prototype;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.PrototypeGenerationAlgorithm;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.HandlerIS;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.Basic.Utilidades;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.CVCommitteesFilter.CVCommitteesFilter;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.IterativePartitioningFilter.IterativePartitioningFilter;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.EnsembleFilter.EnsembleFilter;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.ClassificationFilter.ClassificationFilter;
+
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.*;
+import java.util.*;
+
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.utilities.*;
+import org.apache.mahout.keel.Algorithms.Semi_Supervised_Learning.utilities.KNN.*;
+
+import org.apache.mahout.keel.Dataset.Attributes;
+import org.apache.mahout.keel.Dataset.InstanceSet;
+
+import org.core.*;
+
+import org.core.*;
+
+import java.util.StringTokenizer;
+
+
+
+/**
+ * This class implements the Self-traning wrapper. You can use: Knn, C4.5, SMO and Ripper as classifiers.
+ * @author triguero
+ *
+ */
+
+public class SelfTrainingFilteredGenerator extends PrototypeGenerator {
+
+  /*Own parameters of the algorithm*/
+
+ 
+ private int numberOfselectedExamples;
+ private int MaxIter;
+ private int neighbors;
+ private String classifier;
+ private String filter;
+ private double threshold;
+ private int noisyInstances =0;
+
+  protected int numberOfPrototypes;  // Particle size is the percentage
+  protected int numberOfClass;
+  /** Parameters of the initial reduction process. */
+  private String[] paramsOfInitialReducction = null;
+
+  
+  /**
+   * Build a new SelfTrainingFilteredGenerator Algorithm
+   * @param t Original prototype set to be reduced.
+   * @param perc Reduction percentage of the prototype set.
+   */
+  
+  public SelfTrainingFilteredGenerator(PrototypeSet _trainingDataSet, int neigbors,int poblacion, int perc, int iteraciones, double c1, double c2, double vmax, double wstart, double wend)
+  {
+      super(_trainingDataSet);
+      algorithmName="SelfTrainingFiltered";
+      
+  }
+  
+
+
+  /**
+   * Build a new SelfTrainingFilteredGenerator Algorithm
+   * @param t Original prototype set to be reduced.
+   * @param unlabeled Original unlabeled prototype set for SSL.
+   * @param params Parameters of the algorithm (only % of reduced set).
+   */
+  public SelfTrainingFilteredGenerator(PrototypeSet t, PrototypeSet unlabeled, PrototypeSet test, Parameters parameters)
+  {
+      super(t,unlabeled, test, parameters);
+      algorithmName="SelfTrainingFiltered";
+   
+    
+      this.numberOfselectedExamples =  parameters.getNextAsInt();
+      this.MaxIter =  parameters.getNextAsInt();
+      this.classifier = parameters.getNextAsString();
+      this.filter = parameters.getNextAsString();
+      this.threshold = parameters.getNextAsDouble();
+      
+      //Last class is the Unknown 
+      this.numberOfClass = trainingDataSet.getPosibleValuesOfOutput().size();
+      
+      System.out.print("\nIsaacSSL dice:  " + this.numberOfselectedExamples+ ", "+ this.numberOfClass +"\n");
+
+  }
+  
+  
+  public long factorial (int x){
+	 long factor =1;
+	
+	 if(x!=0){
+	  for (int i=1; i<=x ; i++){
+		  factor*=i;
+	  }
+	 }
+	 
+	  return factor;
+  }
+  
+  
+  public double bernuilli(double prob, int n, int x){
+	  
+	  double bernuilli = 1;
+	  
+
+  double f1 =factorial(n-x), f2 = factorial(x), f3=factorial(n);
+	  
+  if(f1!=0 && f2!=0 &&  f3!=0){
+	  bernuilli *= f3/(f2*f1);
+	  bernuilli *= Math.pow(prob, x) * Math.pow(1-prob, n-x);
+  }else{
+	  bernuilli=1;
+  }
+	  return bernuilli;
+	  
+  }
+  
+  
+  
+  public PrototypeSet filter_SETRED(PrototypeSet labeled,  PrototypeSet labeledPrima, double [] proportion){
+	  
+	  PrototypeSet labeledUnion = new PrototypeSet(labeled.clone());
+	  labeledUnion.add(labeledPrima);
+	  
+	  //Construction of a neighborhood graph
+	  boolean adjacencia [][] = new boolean[labeledUnion.size()][labeledUnion.size()];
+	  
+	  for(int l=0; l<labeledUnion.size(); l++){
+		  Arrays.fill(adjacencia[l], false);
+	  }
+	  //Calculing all the distances:
+	  double dist[][] = new double[labeledUnion.size()][labeledUnion.size()];
+	  
+	  
+	  for(int p=0; p<labeledUnion.size(); p++){
+		  
+		  for(int q=0; q<labeledUnion.size(); q++){
+		  			  
+			  if(p!=q){
+				  dist[p][q]=Distance.absoluteDistance(labeledUnion.get(q), labeledUnion.get(p));
+			  }
+		  }
+	  }
+	  //Build a neighborhood graph
+	  
+	  for(int p=0; p<labeledUnion.size(); p++){
+		  
+		  for(int q=0; q<labeledUnion.size(); q++){
+	 					  
+			  if(p!=q){
+				 boolean edge = true;
+				  
+				  for(int n=0; n<labeledUnion.size() && edge; n++){
+					  
+					  if(n!=p && n!=q){
+						  if(dist[p][q]> Math.max(dist[p][n], dist[q][n])){
+							  edge = false;
+						  }
+					  }
+					  
+				  }
+				  
+				  adjacencia[p][q] = edge;
+				  					  
+			  }
+		  }
+		  
+	  } //End Graph-Construcction.
+	  
+  
+	  // For each prototype of L'
+	  
+	  //weights are 1/(1+dist[p][q])
+	  // In kj[i] we have the  proportion of examples of this class.
+	  
+	  double sumCutEdge[] = new double[labeledPrima.size()];
+	  double sumCutEdgeCuadrado[] = new double[labeledPrima.size()]; 
+	  double expectation[] = new double[labeledPrima.size()]; 
+	  double variance[] = new double[labeledPrima.size()]; 
+	  double observation[] = new double[labeledPrima.size()]; 
+	  double Z[] = new double[labeledPrima.size()];
+	  double p_value[] = new double[labeledPrima.size()];
+	  
+	  int cont =labeledPrima.size()-1;
+	  
+	//  System.out.println("Número a añadir= "+ labeledPrima.size());
+	  
+	  
+	  for(int p=labeledUnion.size()-1; p>=(labeledUnion.size()-labeledPrima.size()); p--){
+		  sumCutEdge[cont] = 0;
+		  sumCutEdgeCuadrado[cont] = 0;
+		  int adjacentes =0;
+		  
+		  // Calcular Vecindario. Y cutEdges.
+		  
+		  for(int q=0; q<labeledUnion.size(); q++){
+			
+			  
+			  if(adjacencia[p][q]){  // if this instance belongs to its neighborhood
+				  adjacentes++;
+				  
+				  if(labeledUnion.get(p).getOutput(0)!=labeledUnion.get(q).getOutput(0)){
+					  sumCutEdge[cont] += 1./(1+dist[p][q]);
+					  sumCutEdgeCuadrado[cont] += (1./(1+dist[p][q])) * (1./(1+dist[p][q]));
+					  
+						  
+				//	  System.out.println("Tengo cut-edges");
+				  }
+			  }
+		  }
+		  
+		  // adjacentes tiene el tamaño del vecindario.
+
+		  int contador =0; // to determine the number in the neighborhood
+		  
+		  for(int q=0; q<labeledUnion.size(); q++){
+			
+			  
+			  if(adjacencia[p][q]){  // if this instance belongs to its neighborhood
+				  
+				  contador++;  // 1-
+				//  System.out.println("Bernuilii -> proportion = " + (1-proportion[(int)labeledUnion.get(p).getOutput(0)])+", N = "+ adjacentes + ", X= " +contador);
+				  
+				  observation[cont] += (1./(1+dist[p][q]))* bernuilli(1-proportion[(int)labeledUnion.get(p).getOutput(0)], adjacentes, contador); //*Ibernuilli
+			  }
+			  
+		  }
+
+		//  System.out.println("SymCut Edge ->"+ sumCutEdge[cont]);
+		  
+		   expectation[cont] = sumCutEdge[cont]*(1.-proportion[(int)labeledUnion.get(p).getOutput(0)]);
+		   variance[cont] = sumCutEdgeCuadrado[cont]* proportion[(int)labeledUnion.get(p).getOutput(0)]* (1-proportion[(int)labeledUnion.get(p).getOutput(0)]);
+		  
+		   
+		   Z[cont] = (observation[cont]-expectation[cont])/ Math.sqrt(variance[cont]);
+		   
+		   
+		//   System.out.println("Z ->"+ Z[cont]);
+		   NormalDistribution normal = new NormalDistribution();
+		   normal.setMean(expectation[cont]);
+		   normal.setSigma(Math.sqrt(variance[cont]));
+			 
+		   p_value[cont] = normal.getTipifiedProbability(Z[cont], false);
+		   
+		//   System.out.println("P-value= "+ normal.getTipifiedProbability(Z[cont], false));
+		   
+		   
+		   cont--;
+	  }
+	  
+	  int contadorRuido=0;
+	  
+	  for(int l=0; l<labeledPrima.size(); l++){ 
+		  if(p_value[l]>this.threshold){
+			  
+			  labeled.add(labeledPrima.get(l)); 
+		  }else{
+			  contadorRuido++;
+		  }
+		  
+		  /*else{
+			  System.out.println("No lo Añado, está a la izquierda");
+		  }*/
+		  
+	  }
+	  
+		System.out.println(this.filter+" ContadorRuido= "+contadorRuido);
+		
+	  
+	  
+	  return labeled;
+  }
+  
+  
+    
+  
+  public PrototypeSet filter_X(PrototypeSet labeled,  PrototypeSet labeledPrima) throws Exception{
+	  
+	  PrototypeSet Union = new PrototypeSet(labeled.clone());
+	  Union.add(labeledPrima);
+	  
+	  //Save the set.
+	 	  
+	 
+	    
+	  
+	  int[] res = null;
+	  
+	  // Determine which instances of labeledUnion should be removed.
+	  
+	  if(this.filter.equalsIgnoreCase("IPF")){
+		  Union.save("intermedio.dat");
+		  // Calling IPF filter.
+			IterativePartitioningFilter method = new IterativePartitioningFilter("intermedio.dat");
+			res = method.run();
+			System.out.println(res.length); // numero de instancias con ruido
+		  
+	  }else if(this.filter.equalsIgnoreCase("CVCF")){
+		  Union.save("intermedio.dat");
+			CVCommitteesFilter method = new CVCommitteesFilter("intermedio.dat");
+			res = method.run();
+			System.out.println(res.length); // numero de instancias con ruido
+			
+	  }else if(this.filter.equalsIgnoreCase("Ensemble")){
+		  Union.save("intermedio.dat");
+		  System.out.println("Executing Ensemble Filter");
+			EnsembleFilter method = new EnsembleFilter("intermedio.dat");
+			res = method.run();
+			System.out.println(res.length); // numero de instancias con ruido
+			
+	  }else if(this.filter.equalsIgnoreCase("Classification")){
+		  Union.save("intermedio.dat");
+			ClassificationFilter method = new ClassificationFilter("intermedio.dat");
+			res = method.run();
+			System.out.println(res.length); // numero de instancias con ruido
+			
+	  }else if(this.filter.equalsIgnoreCase("AllKNN") || this.filter.equalsIgnoreCase("ENN") || this.filter.equalsIgnoreCase("MoCS") || this.filter.equalsIgnoreCase("MENN") 
+			     || this.filter.equalsIgnoreCase("NCNEdit") || this.filter.equalsIgnoreCase("Multiedit") || this.filter.equalsIgnoreCase("RNGE") || this.filter.equalsIgnoreCase("ENRBF") || this.filter.equalsIgnoreCase("ENNTh")){
+		  
+		  Union.save("intermedio.dat");
+			HandlerIS method = new HandlerIS(this.filter);
+		     
+			  ParametersSMO.numPartitions = 1;
+		      ParametersSMO.trainInputFile= "intermedio.dat";
+		      ParametersSMO.numClasses = this.numberOfClass;
+		      ParametersSMO.numInstances = Union.size();
+		      ParametersSMO.seed = String.valueOf(this.SEED);
+		       
+		      res= method.generateFiles();
+			// res= method.ejecutar(Union.toInstanceSet());
+		      
+			System.out.println(res.length); // numero de instancias con ruido
+			
+	  }
+	 
+
+		//Checking if the labeledPrima prototypes are in the ''toClean'' set.
+	  
+		PrototypeSet aux= new PrototypeSet(labeled.clone()); //
+
+		int contadorRuido = 0;
+		
+		for(int i=labeled.size(); i< Union.size(); i++){
+			
+			boolean incluir = true;
+			for(int j=0; j< res.length && incluir; j++){
+				if(res[j]==i){
+					incluir= false;
+					//System.out.println("No la incluyo");
+					contadorRuido++;
+				}
+			}
+			
+			if(incluir){
+				aux.add(Union.get(i));
+			}
+		}
+		
+		System.out.println(this.filter+" ContadorRuido= "+contadorRuido);
+
+	  
+		noisyInstances+= contadorRuido;
+		
+	  return aux;
+  }
+  
+  /**
+   * Apply the SelfTrainingGenerator method.
+   * @return 
+   */
+  
+  
+  public Pair<PrototypeSet, PrototypeSet> applyAlgorithm() throws Exception
+  {
+	  System.out.print("\nThe algorithm SELF TRAINING is starting...\n Computing...\n");
+	  
+	  PrototypeSet labeled;
+	  PrototypeSet unlabeled;
+	  
+	  labeled = new PrototypeSet(trainingDataSet.getAllDifferentFromClass(this.numberOfClass)); // Selecting labeled prototypes from the training set.
+	  unlabeled = new PrototypeSet(trainingDataSet.getFromClass(this.numberOfClass));
+	  
+	  // established indexes
+	  for(int i=0; i<labeled.size(); i++){
+		  labeled.get(i).setIndex(i);
+	  }
+	  
+	  for(int i=0; i<unlabeled.size(); i++){
+		  unlabeled.get(i).setIndex(i);
+	  }
+	  // Accuracy with initial labeled data.
+	  
+	  if(classifier.equals("NN")){
+		  System.out.println("AccTrs with initial labeled data ="+ KNN.classficationAccuracy(labeled,this.transductiveDataSet,1)*100./this.transductiveDataSet.size());
+		  System.out.println("AccTst with initial labeled data ="+ KNN.classficationAccuracy(labeled,this.testDataSet,1)*100./this.testDataSet.size());
+	  }
+	  
+	  //labeled.print();
+	  //unlabeled.print();
+	  
+	  System.out.println("Labeled size = " +labeled.size());
+	  System.out.println("Unlabeled size = " + unlabeled.size());
+	  
+	  
+	  // kj is the number of prototypes added from class j, that it must be propornotional to its ratio.
+	  
+	  double kj[] = new double[this.numberOfClass];
+	  double proportion[] = new double[this.numberOfClass];
+	  double minimo = Double.MAX_VALUE;
+	  
+	  for(int i=0; i<this.numberOfClass; i++){
+		  
+		  if(labeled.getFromClass(i).size() == 0){
+			  proportion[i] = 0;
+		  }else{
+			  proportion[i] = (labeled.getFromClass(i).size()*1./labeled.size());
+		  }
+		  
+		  if(proportion[i]<minimo && proportion[i]!=0){
+			  minimo = proportion[i];
+		  }
+		  //System.out.println(kj[i]);
+	  }
+	
+	  double maximoKj = 0;
+	  // The minimum ratio is establish to this.numberOfselectedExamples
+	  for(int i=0; i<this.numberOfClass; i++){
+		  kj[i] = Math.round(proportion[i]/minimo);
+		  maximoKj+=kj[i];
+		 System.out.println(kj[i]);
+	  }
+	  
+
+	  // In order to avoid problems with C45 and NB.
+	  for(int p=0; p<unlabeled.size(); p++){
+		  unlabeled.get(p).setFirstOutput(0); // todos con un valor válido.
+	  }
+	  
+	  
+
+	  for (int i=0; i<this.MaxIter && unlabeled.size()>maximoKj; i++){
+		  
+		  PrototypeSet labeledPrima = new PrototypeSet();
+		  double confidence[][] = new double[unlabeled.size()][this.numberOfClass];
+
+		  double maximoClase[][] = new double[this.numberOfClass][];
+		  int indexClase[][] = new int[this.numberOfClass][];
+
+	     /* 
+	      
+		  boolean condicionFIN = false;
+		  
+		  double contadorClase[] = new double[this.numberOfClass];
+		  Arrays.fill(contadorClase, 0);
+		  
+		  while(!condicionFIN){
+			*/  
+			
+		      int[] pre = new int[unlabeled.size()];    
+		      double [][] probabilities = new double[unlabeled.size()][this.numberOfClass];
+		      
+
+			  
+			  if(this.classifier.equalsIgnoreCase("NN")){ 
+				  
+			 
+				  for (int q=0; q<unlabeled.size(); q++){  // for each unlabeled.
+					  
+					  Prototype NearClass[] = new Prototype[this.numberOfClass];
+		
+					  
+					  double sumatoria = 0;
+					  for (int j=0 ; j< this.numberOfClass; j++){
+						 // unlabeled.get(q).print();
+						 // System.out.println("Labeled size = "+labeled.getFromClass(j).size());
+						  if(labeled.getFromClass(j).size() >0){
+						  
+							  NearClass[j] = new Prototype (labeled.getFromClass(j).nearestTo(unlabeled.get(q)));				  
+							  probabilities[q][j] = Math.exp(-1*(Distance.absoluteDistance(NearClass[j], unlabeled.get(q))));
+							  sumatoria+= probabilities[q][j];
+						  }else{
+							  probabilities[q][j] = 0;
+						  }
+					  }
+					  
+					  for (int j=0 ; j< this.numberOfClass; j++){
+						  probabilities[q][j]/=sumatoria;
+					  }
+				  
+				  }
+				  
+
+			  
+			  
+			  }else if(this.classifier.equalsIgnoreCase("C45")){
+				  
+				   /*labeled.save("labeled.dat");
+				
+				  unlabeled.save("unlabeled.dat");
+				
+			     // C45 c45 = new C45("labeled.dat", "unlabeled.dat");      // C4.5 called
+			      */
+				  
+				  C45 c45 = new C45(labeled.toInstanceSet(), unlabeled.toInstanceSet());      // C4.5 called
+				  
+			      pre = c45.getPredictions().clone();    
+				  
+			      probabilities = c45.getProbabilities().clone();
+				  
+				  c45 = null;
+				  System.gc();
+				  
+			  }else if(this.classifier.equalsIgnoreCase("NB")){
+				  
+				  //System.out.println("Naive Bayes Executing...");
+				 
+				  
+				  //labeled.save("labeled.dat");
+				  //unlabeled.save("unlabeled.dat");
+			     // HandlerNB nb = new HandlerNB("labeled.dat", "unlabeled.dat", unlabeled.size(), this.numberOfClass);      // C4.5 called
+	               
+				
+				  HandlerNB nb = new HandlerNB(labeled.prototypeSetTodouble(), labeled.prototypeSetClasses(), unlabeled.prototypeSetTodouble(), unlabeled.prototypeSetClasses(),this.numberOfClass);
+				  
+			      pre = nb.getPredictions().clone();    
+		  
+			      probabilities = nb.getProbabilities().clone();
+  
+			      nb= null;
+			      System.gc();
+			      
+			   //   System.out.println("Naive Bayes Finishes...");
+			     
+			  }else if(this.classifier.equalsIgnoreCase("SMO")){
+				  
+					 // System.out.println("SVM Executing...");
+						 
+				      HandlerSMO SMO = new HandlerSMO(labeled.toInstanceSet(), unlabeled.toInstanceSet(), this.numberOfClass,String.valueOf(this.SEED));      // SMO
+				      
+				      pre = SMO.getPredictions(0).clone();    
+				      
+				      probabilities = SMO.getProbabilities().clone();
+	  
+				      SMO  = null;
+				      System.gc();
+				    //  System.out.println("SVM Finishes...");
+				     
+	  
+					  
+				  }
+			  
+			  
+			  // selecting best kj[j] prototypes.
+			  
+			  // determine who are the best prototypes
+			  
+			  // determine who are the best prototypes
+			  
+			  // maximoClase = new double[this.numberOfClass][];
+              indexClase = new int[this.numberOfClass][];
+				
+              
+			  for (int j=0 ; j< this.numberOfClass; j++){
+				 // maximoClase[j] = new double[(int) kj[j]];
+				  indexClase[j] = new int[(int) kj[j]];
+				  
+				 //Arrays.fill(maximoClase[j], Double.MIN_VALUE);
+				 Arrays.fill(indexClase[j], -1);
+			  }
+	
+		
+			  for (int j=0; j< this.numberOfClass; j++){
+				  // for each class, ordenar vector de prob.
+				  double [] aOrdenar = new double[unlabeled.size()];
+				  int [] position = new int [unlabeled.size()];
+				  
+				  for(int q=0;q<unlabeled.size(); q++){  
+					  aOrdenar[q] =  probabilities[q][j];
+					  position[q] = q;
+				  }
+				  
+				  Utilidades.quicksort(aOrdenar, position); // orden ascendente!
+				  
+				  /*
+				  for(int q=0; q<unlabeled.size(); q++){
+					 System.out.print(position[q]+", ");
+				  }
+				  */
+				  //System.out.println(" ");
+				  
+				  
+				  for(int z=unlabeled.size()-1; z>=unlabeled.size()-kj[j];z--){
+					  indexClase[j][(unlabeled.size()-1)-z] = position[z];
+				  }
+			  }
+					  
+		
+			  /*
+			  for (int q=0; q<unlabeled.size(); q++){  // for each unlabeled.
+	
+		
+				  for (int j=0; j< this.numberOfClass; j++){
+				  
+						  
+					 
+					  boolean fin = false;
+					  for(int z=(int)kj[j]-1; z>=0 && !fin; z--){
+						  if(probabilities[q][j]> maximoClase[j][z]){
+								fin = true;
+							  maximoClase[j][z] = probabilities[q][j];
+							  indexClase[j][z] = q;
+						  }
+					  }
+						 
+					   
+				  }
+			  
+			  }
+			  */
+			  
+			  PrototypeSet toClean = new PrototypeSet();
+			  
+			  for (int j=0 ; j< this.numberOfClass; j++){
+					
+				  //if(contadorClase[j]< kj[j]){
+				
+				  for(int z=0; z<kj[j];z++){
+					  
+					  //From classifier 1.
+					  if(indexClase[j][z]!=-1){
+				  
+						  Prototype nearUnlabeled = new Prototype(unlabeled.get(indexClase[j][z]));
+						  
+						  
+						  if(this.classifier.equalsIgnoreCase("NN")){ 
+							   
+							  
+							  	Prototype clase = labeled.nearestTo(nearUnlabeled);
+								  
+							  	nearUnlabeled.setFirstOutput(clase.getOutput(0));
+							  	
+								  if(clase.getOutput(0)==j){
+									  labeledPrima.add(new Prototype(nearUnlabeled));
+								  }else{
+									  toClean.add(unlabeled.get(indexClase[j][z]));
+								  }
+								
+							//  	contadorClase[(int)clase.getOutput(0)]++;
+							  	
+	
+								  
+	
+						  }else if(this.classifier.equalsIgnoreCase("C45") || this.classifier.equalsIgnoreCase("NB") || this.classifier.equalsIgnoreCase("SMO") || this.classifier.equalsIgnoreCase("Ripper")){
+							  
+							  nearUnlabeled.setFirstOutput(pre[indexClase[j][z]]);
+							
+							  if(pre[indexClase[j][z]]==j){
+								  labeledPrima.add(new Prototype(nearUnlabeled));
+							  }else{
+								  toClean.add(unlabeled.get(indexClase[j][z]));
+							  }
+							  
+							  
+							 // contadorClase[pre[indexClase[j]]]++;
+							  
+	
+						  }
+					  
+				  
+					  
+					  	
+					  }
+				  
+				  }
+			  }
+			  
+			  
+			  
+			//Then we have to clean the unlabeled have to clean.
+				for (int j=0 ; j< labeledPrima.size(); j++){
+					//unlabeled.removeWithoutClass(labeledPrima.get(j)); 
+					unlabeled.borrar(labeledPrima.get(j).getIndex()); 
+				}
+			  
+			  for (int j=0 ; j<toClean.size(); j++){
+				 // unlabeled.remove(toClean.get(j));
+				  unlabeled.borrar(toClean.get(j).getIndex());
+			  }
+			  
+			/*	condicionFIN = true;
+	
+				
+				//System.out.println(contadorClase[0]);
+				
+				for(int j=0; j< this.numberOfClass && condicionFIN; j++){
+					if(contadorClase[j] >= kj[j]){
+						condicionFIN = true;
+						
+					}else{
+						condicionFIN = false;
+					}
+					
+				}
+				
+				if (unlabeled.size()< maximoKj){
+					condicionFIN = true;
+				}
+
+			
+				// System.out.println("Labeled size = " +labeled.size());
+				 // System.out.println("Unlabeled size = " + unlabeled.size());
+				
+
+		  
+		  } // END CONDITION
+		  */
+		  
+		//	System.out.println("Añado " +labeledPrima.size());
+		  
+		 // System.out.println("Labeled size = " +labeled.size());
+		  // System.out.println("Unlabeled size = " + unlabeled.size());
+		  
+		
+		  //Now, SelfTrainingFiltered applies a Data editing technique.
+			  
+		  
+		  if(this.filter.equalsIgnoreCase("SETRED")){
+			  labeled = new PrototypeSet(filter_SETRED(labeled, labeledPrima, proportion).clone());
+		  }else if(this.filter.equalsIgnoreCase("ENN") || this.filter.equalsIgnoreCase("CVCF") || this.filter.equalsIgnoreCase("IPF") || this.filter.equalsIgnoreCase("Ensemble") || this.filter.equalsIgnoreCase("Classification") || this.filter.equalsIgnoreCase("AllKNN") 
+				  || this.filter.equalsIgnoreCase("MoCS") || this.filter.equalsIgnoreCase("MENN") || this.filter.equalsIgnoreCase("NCNEdit")  || this.filter.equalsIgnoreCase("Multiedit") || this.filter.equalsIgnoreCase("RNGE") || this.filter.equalsIgnoreCase("ENRBF") || this.filter.equalsIgnoreCase("ENNTh")){
+			  labeled = new PrototypeSet(filter_X(labeled, labeledPrima).clone());
+		  }else{
+			  labeled.add(labeledPrima);
+			  
+		  }
+		  
+		  //Re-established indexes
+		  for(int j=0; j<labeled.size(); j++){
+			  labeled.get(j).setIndex(j);
+		  }
+		  
+		  for(int j=0; j<unlabeled.size(); j++){
+			  unlabeled.get(j).setIndex(j);
+		  }
+		  
+		  System.out.println("Labeled size = "+labeled.size());
+		  System.out.println("UNLabeled size = "+unlabeled.size());
+		  System.out.println("Iter = "+ i);
+	  }
+
+	  
+	  System.out.println("Labeled size = "+labeled.size());
+	  System.out.println("UNLabeled size = "+unlabeled.size());
+	  
+
+	  	  
+	  for(int i=0; i<this.numberOfClass; i++){
+		  System.out.println(kj[i]);
+	  }
+	  
+	  System.out.println("Instancias eliminadas = "+this.noisyInstances);
+	  
+	  PrototypeSet tranductive = new PrototypeSet(this.transductiveDataSet.clone());
+	  PrototypeSet test = new PrototypeSet(this.testDataSet.clone());
+	    
+	  int traPrediction[] = null;
+	  int tstPrediction[] = null;
+	  int aciertoTrs = 0;
+	  int aciertoTst = 0;
+	  
+	  
+	  if(this.classifier.equalsIgnoreCase("NN")){
+		  
+		  //We have to return the classification done.
+		  for(int i=0; i<this.transductiveDataSet.size(); i++){
+			   tranductive.get(i).setFirstOutput((labeled.nearestTo(this.transductiveDataSet.get(i))).getOutput(0));
+		  }
+		  
+		  for(int i=0; i<this.testDataSet.size(); i++){
+			  test.get(i).setFirstOutput((labeled.nearestTo(this.testDataSet.get(i))).getOutput(0));
+		  }
+		  
+		  // Transductive Accuracy 
+		  System.out.println("AccTrs ="+KNN.classficationAccuracy(labeled,this.transductiveDataSet,1)*100./this.transductiveDataSet.size());
+		  
+		  // test accuracy
+		  System.out.println("AccTst ="+KNN.classficationAccuracy(labeled,this.testDataSet,1)*100./this.testDataSet.size());
+	  
+	  }else if(this.classifier.equalsIgnoreCase("C45")){
+		  
+		 // labeled.save("labeled.dat");
+	  
+		  //transductiveDataSet.save("unlabeled.dat");
+		
+	      //C45 c45 = new C45("labeled.dat", "unlabeled.dat");      // C4.5 called
+	      
+		  C45 c45 = new C45(labeled.toInstanceSet(), transductiveDataSet.toInstanceSet());      // C4.5 called
+		  
+	      
+		  traPrediction = c45.getPredictions();
+		  
+		//  testDataSet.save("unlabeled.dat");
+			
+	      //c45 = new C45("labeled.dat", "unlabeled.dat");      // C4.5 called
+		  
+	      c45 = new C45(labeled.toInstanceSet(), testDataSet.toInstanceSet());      // C4.5 called
+	      
+		  tstPrediction = c45.getPredictions();
+		  
+		  
+		  
+	  }else if(this.classifier.equalsIgnoreCase("NB")){
+		  
+		  /*
+		  
+		  HandlerNB nb = new HandlerNB(labeled.prototypeSetTodouble(), labeled.prototypeSetClasses(), transductiveDataSet.prototypeSetTodouble(), transductiveDataSet.prototypeSetClasses(),this.numberOfClass);
+		  
+		  traPrediction = nb.getPredictions();  
+  
+
+		  nb = new HandlerNB(labeled.prototypeSetTodouble(), labeled.prototypeSetClasses(), testDataSet.prototypeSetTodouble(), testDataSet.prototypeSetClasses(),this.numberOfClass);
+		  tstPrediction = nb.getPredictions();
+		 
+	     */
+		  
+		  labeled.save("labeled.dat");
+	  
+		  transductiveDataSet.save("unlabeled.dat");
+		
+	      HandlerNB nb = new HandlerNB("labeled.dat", "unlabeled.dat", transductiveDataSet.size(), this.numberOfClass);      // C4.5 called
+	      
+    	  traPrediction = nb.getPredictions();  
+		  
+		  testDataSet.save("unlabeled.dat");
+			
+		  nb = new HandlerNB("labeled.dat", "unlabeled.dat", testDataSet.size(), this.numberOfClass); 
+		  
+		  tstPrediction = nb.getPredictions();
+		 
+ 
+		  
+	  }else if(this.classifier.equalsIgnoreCase("SMO")){
+		  
+		
+	      HandlerSMO SMO = new HandlerSMO(labeled.toInstanceSet(), transductiveDataSet.toInstanceSet(), this.numberOfClass,String.valueOf(this.SEED));      // SMO
+	      
+	      traPrediction = SMO.getPredictions(0);    
+	      
+			
+
+	      SMO = new HandlerSMO(labeled.toInstanceSet(), testDataSet.toInstanceSet(), this.numberOfClass,String.valueOf(this.SEED)); 
+		  tstPrediction = SMO.getPredictions(0);
+
+		  
+	  }
+	  
+	  if(this.classifier.equalsIgnoreCase("C45") || this.classifier.equalsIgnoreCase("NB") || this.classifier.equalsIgnoreCase("SMO") ){
+	
+	      aciertoTrs = 0;
+	      aciertoTst = 0;
+	  
+		  //We have to return the classification done.
+		  for(int i=0; i<this.transductiveDataSet.size(); i++){
+			  if(tranductive.get(i).getOutput(0) == traPrediction[i]){
+				  aciertoTrs++;
+			  }
+			  
+			  tranductive.get(i).setFirstOutput(traPrediction[i]);
+		  }
+		  
+		  System.out.println("% de acierto TRS = "+ (aciertoTrs*100.)/transductiveDataSet.size());
+		  
+		  for(int i=0; i<this.testDataSet.size(); i++){
+			  if(test.get(i).getOutput(0) == tstPrediction[i]){
+				  aciertoTst++;
+			  }
+			  test.get(i).setFirstOutput(tstPrediction[i]);
+		  }
+		  
+		  System.out.println("% de acierto TST = "+ (aciertoTst*100.)/testDataSet.size());
+	  
+		  
+	  }
+
+	  
+	  
+      return new Pair<PrototypeSet,PrototypeSet>(tranductive,test);
+  }
+  
+  /**
+   * General main for all the prototoype generators
+   * Arguments:
+   * 0: Filename with the training data set to be condensed.
+   * 1: Filename which contains the test data set.
+   * 3: Seed of the random number generator.            Always.
+   * **************************
+   * @param args Arguments of the main function.
+   */
+  public static void main(String[] args)
+  {  }
+
+}

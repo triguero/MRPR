@@ -1,0 +1,100 @@
+10
+
+dir
+24
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl/src/keel/Algorithms/Preprocess/Feature_Selection/nonevolutionary_algorithms
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl
+
+
+
+2011-07-28T10:38:35.013981Z
+1
+isaac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6c7e97d8-20ad-4c8d-a3e2-5ac7daabb015
+
+FOCUS
+dir
+
+SA_MI_FS
+dir
+
+SFS_IEP_FS
+dir
+
+ABB_IEP
+dir
+
+LVF_IEP
+dir
+
+LVF
+dir
+
+FULL_MI
+dir
+
+SA_IEP_FS
+dir
+
+SBS_LIU_FS
+dir
+
+SFS_LIU_FS
+dir
+
+ABB_LIU
+dir
+
+FULL_IEP
+dir
+
+FORWARD
+dir
+
+SA_LIU_FS
+dir
+
+SBS_MI_FS
+dir
+
+RELIEF
+dir
+
+LVW
+dir
+
+SFS_MI_FS
+dir
+
+ABB_MI
+dir
+
+RELIEF_F
+dir
+
+FULL_LIU
+dir
+
+GRASP
+dir
+
+SBS_IEP_FS
+dir
+
+BACKWARD
+dir
+

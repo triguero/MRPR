@@ -1,0 +1,17 @@
+@relation page-blocks
+@attribute Height integer [1, 804]
+@attribute Lenght integer [1, 553]
+@attribute Area integer [7, 143993]
+@attribute Eccen real [0.0070, 537.0]
+@attribute P_black real [0.052, 1.0]
+@attribute P_and real [0.062, 1.0]
+@attribute Mean_tr real [1.0, 4955.0]
+@attribute Blackpix integer [1, 33017]
+@attribute Blackand integer [7, 46133]
+@attribute Wb_trans integer [1, 3212]
+@attribute Class {1, 2, 3, 4, 5}
+@inputs Height, Lenght, Area, Eccen, P_black, P_and, Mean_tr, Blackpix, Blackand, Wb_trans
+@outputs Class
+@data
+
+

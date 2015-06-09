@@ -1,0 +1,97 @@
+package org.apache.mahout.classifier.smo.mapreduce;
+
+import com.google.common.base.Preconditions;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Reducer.Context;
+import org.apache.mahout.classifier.smo.builder.SMOgenerator;
+import org.apache.mahout.classifier.basic.data.Dataset;
+import org.apache.mahout.classifier.smo.mapreduce.partial.StrataID;
+import org.apache.mahout.keel.Algorithms.Instance_Generation.Basic.PrototypeSet;
+
+import java.io.IOException;
+
+/**
+ * Base class for Mapred mappers. Loads common parameters from the job
+ */
+public class MapredReducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> extends Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
+  
+  private boolean noOutput;
+  
+  protected SMOgenerator smo_algorithm;
+  
+  private Dataset dataset;
+  protected String header;
+
+  protected PrototypeSet join = new PrototypeSet();
+  protected int strata;
+
+  
+  /**
+   * 
+   * @return if false, the mapper does not estimate and output predictions
+   */
+  protected boolean isNoOutput() {
+    return noOutput;
+  }
+  
+  protected SMOgenerator getSMOgeneratorBuilder() {
+    return smo_algorithm;
+  }
+  
+  protected Dataset getDataset() {
+    return dataset;
+  }
+  
+  @Override
+  protected void setup(Context context) throws IOException, InterruptedException {
+    super.setup(context);
+    
+    Configuration conf = context.getConfiguration();
+    
+    configure(!Builder.isOutput(conf), Builder.getSMOgeneratorBuilder(conf), Builder.loadDataset(conf), Builder.getHeader(conf));
+  }
+  
+  /**
+   * Useful for testing.  NO NECESITO el fichero de test en el reduce.
+   */
+  protected void configure(boolean noOutput, SMOgenerator smo_algorithm, Dataset dataset, String header) {
+    Preconditions.checkArgument(smo_algorithm != null, "PGgenerator not found in the Job parameters");
+    this.noOutput = noOutput;
+    this.smo_algorithm = smo_algorithm;
+    this.dataset = dataset;
+    this.header = header;
+  }
+
+  
+  /**
+   * Generic reducer, it only adds all the RSs.
+   */
+  
+protected void reduce(KEYIN id, Iterable<VALUEIN> rs, Context context)
+		throws IOException, InterruptedException {
+	
+	//System.out.println("Si paso por aquí: "+id);
+	//strata = (StrataID) id;
+
+	for(VALUEIN value: rs){
+		context.progress();
+		MapredOutput prueba = (MapredOutput) value;
+		//PrototypeSet strato = prueba.getRS();
+	
+		//join.add(strato);
+    	//System.out.println("Amos copon "+mojon.size());
+	}
+	
+	// if you write here, the cleanup does not work.
+	//MapredOutput salida= new MapredOutput(join);
+	//context.write((KEYOUT) id, (VALUEOUT) salida);
+
+}
+
+
+}
+
+

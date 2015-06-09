@@ -1,0 +1,94 @@
+10
+
+dir
+24
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl/src/keel/Algorithms/Fuzzy_Rule_Learning/Genetic
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl
+
+
+
+2011-07-28T10:38:35.013981Z
+1
+isaac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6c7e97d8-20ad-4c8d-a3e2-5ac7daabb015
+
+ClassifierSLAVE
+dir
+
+ClassifierFuzzySGERD
+dir
+
+ClassifierFuzzyGP
+dir
+
+GFS_RB_MF
+dir
+
+ClassifierFuzzyGAP
+dir
+
+ModelFuzzyPittsBurgh
+dir
+
+ClassifierMOGUL
+dir
+
+COR_GA
+dir
+
+Fuzzy_Ish_Hybrid
+dir
+
+ClassifierIshibuchi99
+dir
+
+ModelFuzzyGP
+dir
+
+ClassifierFuzzySAP
+dir
+
+ModelFuzzyGAP
+dir
+
+Thrift
+dir
+
+ClassifierShi_Eberhart_Chen
+dir
+
+ClassifierFuzzyLogitBoost
+dir
+
+Fuzzy_Ish_Selec
+dir
+
+Shared
+dir
+
+ClassifierFuzzyPittsBurgh
+dir
+
+ClassifierFuzzyMaxLogitBoost
+dir
+
+ClassifierFuzzyAdaBoost
+dir
+
+ModelFuzzySAP
+dir
+

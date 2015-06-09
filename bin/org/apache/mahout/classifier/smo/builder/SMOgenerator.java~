@@ -1,0 +1,147 @@
+package org.apache.mahout.classifier.smo.builder;
+
+import org.apache.hadoop.mapreduce.Mapper.Context;
+import org.apache.mahout.classifier.smo.data.Data;
+import org.apache.mahout.classifier.smo.data.Dataset;
+import org.apache.mahout.classifier.smo.utils.PGUtils;
+import org.apache.mahout.classifier.smo.*;
+
+import org.apache.mahout.keel.Dataset.Attributes;
+import org.apache.mahout.keel.Dataset.InstanceAttributes;
+import org.apache.mahout.keel.Dataset.InstanceSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class FSgenerator  {
+  
+  private static final Logger log = LoggerFactory.getLogger(FSgenerator.class);	
+  int nClasses, nLabels;
+
+  public String FSmethod = "CHC";
+  
+  public String header;
+  CHC algorithm;
+  
+	//  strata[i].print();
+	  
+  public FSgenerator() {
+  }
+  
+  public FSgenerator(String alg)
+  {
+	  this.FSmethod = alg;
+  }
+  
+  public void setNLabels(int nLabels) {
+    this.nLabels = nLabels;
+  }
+
+
+  public void setHeader(String header){
+	  this.header=header;
+  }
+  public void build(Data data, Context context) throws Exception {
+    //We do here the algorithm's operations
+
+	Dataset dataset = data.getDataset();
+	 
+	nClasses = dataset.nblabels();
+	
+	//Gets the number of input attributes of the data-set
+	int nInputs = dataset.nbAttributes() - 1;
+	
+	//It returns the class labels
+	String clases[] = dataset.labels();
+	
+	// data has the instance + label
+	//for(int i=0; i<= nInputs; i++)
+	//	log.info("prueba: "+data.get(0).get()[i]);
+	context.progress();
+
+	if(this.PGmethod.equalsIgnoreCase("IPADE")){
+		log.info("PGgenerator: ejecutando IPADE...");
+		algorithm = new IPLDEGenerator(context, data, 1, 10000, 8, 20, 0.5, 0.9, 0.03, 0.07);
+	}else if(this.PGmethod.equalsIgnoreCase("SSMASFLSDE")){
+		log.info("PGgenerator: ejecutando SSMASFLSDE...");
+		algorithm2 = new HandlerSSMASFLSDE();
+		algorithm2.ejecutar(data, context);
+	}else if(this.PGmethod.equalsIgnoreCase("IPADECS")){
+		log.info("PGgenerator: ejecutando IPADECS...");
+		algorithmIPADECS = new IPLDECSGenerator(context, data, 1, 10, 500, 8, 20, 0.1, 0.9, 0.1,0.1,  0.03, 0.07, 3);
+	}else if(this.PGmethod.equalsIgnoreCase("IPADE_windowing")){	
+		log.info("PGgenerator: ejecutando IPADE con windowing...");
+		algorithmIPADEwin = new IPLDE_windowingGenerator(context, data, 1, 10000, 8, 20, 0.5, 0.9, 0.03, 0.07,windows); // cambiar por número de stratos.
+	}else if(this.PGmethod.equalsIgnoreCase("IPADECS_windowing")){	
+		log.info("PGgenerator: ejecutando IPADECS con windowing "+ windows);
+		algorithmIPADECSwin = new IPLDECS_windowingGenerator(context, data, 1, 10, 500, 8, 20, 0.1, 0.9, 0.1,0.1,  0.03, 0.07, 3, windows);
+	}else if(this.PGmethod.equalsIgnoreCase("LVQ3")){
+		log.info("PGgenerator: ejecutando LVQ3 ");
+		algorithmLVQ3 = new LVQ3(context,data, 100, 2, 0.1, 0.2, 0.1);
+	}else if(this.PGmethod.equalsIgnoreCase("RSP3")){
+		log.info("PGgenerator: ejecutando RSP3 ");
+		algorithmRSP3 = new RSPGenerator(data, 0,"diameter", context);
+	}else if(this.PGmethod.equalsIgnoreCase("DROP3") || this.PGmethod.equalsIgnoreCase("FCNN")){
+		log.info("PGgenerator: ejecutando "+this.PGmethod);
+		
+		algorithmIS = new HandlerIS(this.PGmethod);
+		algorithmIS.reduceSet = algorithmIS.reduce(data, context);
+		
+	}else if(this.PGmethod.equalsIgnoreCase("IPADE_NB")){
+		log.info("PGgenerator: ejecutando IPADE_NB ");
+		algorithmIPADE_NB=new IPADE_NBGenerator(context,data, 1,1000,8,20,0.5, 0.9, 0.03, 0.07,"NN","false",0.5);
+	}else{
+		log.info("PGgenerator: No hay reducción, guardo el fichero de entrada tal cual.");
+		algorithm2 = new HandlerSSMASFLSDE();
+		algorithm2.reducedSet = new PrototypeSet(data, context);
+	}
+
+	log.info("PG: data size = "+data.size());
+
+  }
+  /*else if(this.PGmethod.equalsIgnoreCase("ICPL")){
+	log.info("PGgenerator: ejecutando ICPL2 ");  
+	algorithmICPL= new ICPLGenerator(data,2,"RT2",1,0, context); 
+
+}*/
+
+  public PrototypeSet reduceSet() {
+	  PrototypeSet output=null;
+	  
+	  if(this.PGmethod.equalsIgnoreCase("IPADE")){
+		 output=algorithm.reduceSet();
+		 output.applyThresholds();
+	  }else if(this.PGmethod.equalsIgnoreCase("IPADECS")){
+		 output=algorithmIPADECS.reduceSet();
+		 output.applyThresholds();
+	  }else if(this.PGmethod.equalsIgnoreCase("IPADE_windowing")){
+		 output=algorithmIPADEwin.reduceSet();
+		 output.applyThresholds();
+	  }else if(this.PGmethod.equalsIgnoreCase("IPADECS_windowing")){
+		 output=algorithmIPADECSwin.reduceSet();
+		 output.applyThresholds();
+	  }else if(this.PGmethod.equalsIgnoreCase("ICPL")){
+   	     output=algorithmICPL.reduceSet();
+		 output.applyThresholds();
+	  }else if(this.PGmethod.equalsIgnoreCase("LVQ3")){
+	   	 output=algorithmLVQ3.reduceSet();
+		 output.applyThresholds();
+	  }else if(this.PGmethod.equalsIgnoreCase("RSP3")){
+		   	 output=algorithmRSP3.reduceSet();
+			 output.applyThresholds();
+	  }else if(this.PGmethod.equalsIgnoreCase("DROP3") || this.PGmethod.equalsIgnoreCase("FCNN")){
+		 output = algorithmIS.reduceSet;
+	  }else if(this.PGmethod.equalsIgnoreCase("IPADE_NB")){
+		   	 output=algorithmIPADE_NB.reduceSetNB();
+			 output.applyThresholds();
+	  }else{
+		  output=algorithm2.reducedSet;
+	  }
+	  
+	  log.info("PG: RS size = "+output.size());
+   
+	  //log.info("\n"+output.toString());
+	  return output;
+  }
+
+
+}

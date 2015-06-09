@@ -1,0 +1,58 @@
+10
+
+dir
+24
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl/src/keel/Algorithms/Decision_Trees
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl
+
+
+
+2011-07-28T10:38:35.013981Z
+1
+isaac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6c7e97d8-20ad-4c8d-a3e2-5ac7daabb015
+
+ID3
+dir
+
+M5
+dir
+
+DT_oblicuo
+dir
+
+FunctionalTrees
+dir
+
+Target
+dir
+
+SLIQ
+dir
+
+CART
+dir
+
+C45
+dir
+
+DT_GA
+dir
+
+PUBLIC
+dir
+

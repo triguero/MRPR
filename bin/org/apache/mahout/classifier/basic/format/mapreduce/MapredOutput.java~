@@ -1,0 +1,85 @@
+package org.apache.mahout.classifier.feature_selection.mapreduce;
+
+import org.apache.hadoop.io.Writable;
+import org.apache.mahout.keel.Algorithms.Instance_Generation.Basic.PrototypeSet;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.Arrays;
+
+
+// Print a PrototypeSet! .
+
+/**
+ * Print a reduced set as a PrototypeSet.
+ */
+public class MapredOutput implements Writable, Cloneable {
+
+  private boolean[] selectedFeatures;  // conjunto reducido.
+
+
+  public MapredOutput() {
+  }
+
+  // constructor básico
+  public MapredOutput(boolean[] selected) { //, int[] predictions
+    this.selectedFeatures = selected;
+  }
+ 
+
+  public boolean[] getSelectedFeatures() {
+    return selectedFeatures;
+  }
+
+  @Override
+  public void readFields(DataInput in) throws IOException {
+    boolean readCorrect = in.readBoolean();
+    if (readCorrect) {
+    	int size=in.readInt();
+    	
+    	selectedFeatures=new boolean[size];
+    	for(int i=0; i<size;i++){
+    		selectedFeatures[i]= in.readBoolean();
+    	}
+    	
+    }
+
+  }
+
+  @Override
+  public void write(DataOutput out) throws IOException {
+    out.writeBoolean(selectedFeatures != null);
+    if (selectedFeatures != null) {
+      out.writeInt(selectedFeatures.length);
+  	
+      for(int i=0; i<selectedFeatures.length;i++){
+		out.writeBoolean(selectedFeatures[i]);
+	  }
+      
+    }
+
+  }
+
+  @Override
+  public MapredOutput clone() {
+    return new MapredOutput(selectedFeatures); //, predictions
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (!(obj instanceof MapredOutput)) {
+      return false;
+    }
+
+    MapredOutput mo = (MapredOutput) obj;
+
+    return ((selectedFeatures == null && mo.getSelectedFeatures() == null) || (selectedFeatures != null && selectedFeatures.equals(mo.getSelectedFeatures()))); //&& Arrays.equals(predictions, mo.getPredictions()
+  }
+
+
+}
+

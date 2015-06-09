@@ -1,0 +1,83 @@
+package org.apache.mahout.classifier.basic.mapreduce;
+
+import com.google.common.base.Preconditions;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Reducer.Context;
+import org.apache.mahout.classifier.basic.builder.FSgenerator;
+import org.apache.mahout.classifier.basic.data.Dataset;
+import org.apache.mahout.classifier.basic.mapreduce.partial.StrataID;
+import org.apache.mahout.keel.Algorithms.Instance_Generation.Basic.PrototypeSet;
+
+import java.io.IOException;
+
+/**
+ * Base class for Mapred mappers. Loads common parameters from the job
+ */
+public class MapredReducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> extends Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
+  
+  private boolean noOutput;
+  
+  protected FSgenerator fs_algorithm;
+  
+  private Dataset dataset;
+  protected String header;
+
+  protected PrototypeSet join = new PrototypeSet();
+  protected int strata;
+
+  
+  /**
+   * 
+   * @return if false, the mapper does not estimate and output predictions
+   */
+  protected boolean isNoOutput() {
+    return noOutput;
+  }
+  
+  protected FSgenerator getPGgeneratorBuilder() {
+    return fs_algorithm;
+  }
+  
+  protected Dataset getDataset() {
+    return dataset;
+  }
+  
+  @Override
+  protected void setup(Context context) throws IOException, InterruptedException {
+    super.setup(context);
+    
+    Configuration conf = context.getConfiguration();
+    
+    configure(!Builder.isOutput(conf), Builder.getFSgeneratorBuilder(conf), Builder.loadDataset(conf), Builder.getHeader(conf));
+  }
+  
+  /**
+   * Useful for testing
+   */
+  protected void configure(boolean noOutput, FSgenerator fs_algorithm, Dataset dataset, String header) {
+    Preconditions.checkArgument(fs_algorithm != null, "PGgenerator not found in the Job parameters");
+    this.noOutput = noOutput;
+    this.fs_algorithm = fs_algorithm;
+    this.dataset = dataset;
+    this.header = header;
+  }
+
+  
+  /**
+   * Generic reducer, it only adds all the RSs.
+   */
+  
+protected void reduce(KEYIN id, Iterable<VALUEIN> rs, Context context)
+		throws IOException, InterruptedException {
+	// TODO Apéndice de método generado automáticamente
+	
+
+}
+
+
+}
+
+

@@ -1,0 +1,178 @@
+10
+
+dir
+24
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl/src/keel/Algorithms/Lazy_Learning
+svn+ssh://hercules.ugr.es/home/isaac/repositorios/keelssl
+
+
+
+2011-07-28T10:38:35.013981Z
+1
+isaac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6c7e97d8-20ad-4c8d-a3e2-5ac7daabb015
+
+LBR
+dir
+
+NSC
+dir
+
+IDIBL
+dir
+
+KStar
+dir
+
+PW
+dir
+
+KNN
+dir
+
+CPW
+dir
+
+CamNN
+dir
+
+DeepsNN
+dir
+
+Deeps
+dir
+
+KNNAdaptive
+dir
+
+LazyAlgorithm.java
+file
+25
+
+
+
+2011-10-25T14:24:57.452800Z
+8531b0d6d6fb62f154e0edb850ddd869
+2011-10-25T14:31:56.112601Z
+25
+isaac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+32329
+
+LazyDT
+dir
+
+DataException.java
+file
+
+
+
+
+2011-07-29T11:49:01.187184Z
+b2fe364266cfc70c13ab68ab6c9bd4f7
+2011-07-28T10:38:35.013981Z
+1
+isaac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1949
+
+KSNN
+dir
+
+CW
+dir
+
+NM
+dir
+
+Statistics.java
+file
+
+
+
+
+2011-07-29T11:49:01.187184Z
+78ef72ca7596bfc507fbaecf59ca2785
+2011-07-28T10:38:35.013981Z
+1
+isaac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+29316
+
+CenterNN
+dir
+
